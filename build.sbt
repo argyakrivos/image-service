@@ -11,6 +11,7 @@ lazy val root = (project in file(".")).
         "com.blinkbox.books"        %% "common-config"     % "2.3.0",
         "com.blinkbox.books"        %% "common-scala-test" % "0.3.0"  % Test,
         "com.blinkbox.books.hermes" %% "rabbitmq-ha"       % "8.1.1",
+        "com.blinkbox.books.hermes" %% "message-schemas"   % "0.7.3",
         "com.typesafe.akka"         %% "akka-testkit"      % akkaV    % Test
       )
     }

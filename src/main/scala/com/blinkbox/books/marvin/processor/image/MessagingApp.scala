@@ -1,5 +1,7 @@
 package com.blinkbox.books.marvin.processor.image
 
+import java.net.URI
+
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.util.Timeout
 import com.blinkbox.books.config.Configuration
@@ -9,6 +11,9 @@ import com.blinkbox.books.rabbitmq.RabbitMqConfirmedPublisher.PublisherConfigura
 import com.blinkbox.books.rabbitmq.RabbitMqConsumer.QueueConfiguration
 import com.blinkbox.books.rabbitmq.{RabbitMq, RabbitMqConfirmedPublisher, RabbitMqConsumer}
 import com.typesafe.scalalogging.StrictLogging
+
+import scala.concurrent.Future
+import scala.io.Source
 
 object MessagingApp extends App with Configuration with Loggers with StrictLogging {
   val appConfig = AppConfig(config)
@@ -20,9 +25,18 @@ object MessagingApp extends App with Configuration with Loggers with StrictLoggi
   val consumerConnection = RabbitMq.reliableConnection(appConfig.rabbitmq)
   val publisherConnection = RabbitMq.recoveredConnection(appConfig.rabbitmq)
 
+  // dummy storage service
+  val storageService = new StorageService {
+    override def store(source: Source, label: String, extension: String, originalFile: Option[String]): Future[URI] =
+      Future.successful(new URI("http://localhost/"))
+    override def retrieve(token: URI): Future[Source] =
+      Future.successful(Source.fromString("xxx"))
+  }
+
   val msgErrorHandler = errorHandler("message-error", appConfig.error)
   val msgHandler = system.actorOf(Props(
-    new ImageHandler(msgErrorHandler, appConfig.retryInterval)), name = "message-handler")
+    new ImageHandler(storageService, msgErrorHandler, appConfig.retryInterval)),
+    name = "message-handler")
   val msgConsumer = consumer("message-consumer", appConfig.input, msgHandler)
 
   // kick-off things
