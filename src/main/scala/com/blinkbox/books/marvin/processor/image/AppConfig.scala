@@ -1,5 +1,6 @@
 package com.blinkbox.books.marvin.processor.image
 
+import java.nio.file.{Path, Paths}
 import java.util.concurrent.TimeUnit
 
 import com.blinkbox.books.rabbitmq.RabbitMqConfig
@@ -10,7 +11,7 @@ import com.typesafe.config.Config
 import scala.concurrent.duration.{FiniteDuration, _}
 
 case class AppConfig(rabbitmq: RabbitMqConfig, retryInterval: FiniteDuration, actorTimeout: FiniteDuration,
-  input: QueueConfiguration, output: PublisherConfiguration, error: PublisherConfiguration)
+  input: QueueConfiguration, output: PublisherConfiguration, error: PublisherConfiguration, storagePath: Path)
 
 object AppConfig {
   val prefix = "service.imageProcessor"
@@ -20,6 +21,7 @@ object AppConfig {
     config.getDuration(s"$prefix.actorTimeout", TimeUnit.SECONDS).seconds,
     QueueConfiguration(config.getConfig(s"$prefix.input")),
     PublisherConfiguration(config.getConfig(s"$prefix.output")),
-    PublisherConfiguration(config.getConfig(s"$prefix.error"))
+    PublisherConfiguration(config.getConfig(s"$prefix.error")),
+    Paths.get(config.getString(s"$prefix.storagePath"))
   )
 }

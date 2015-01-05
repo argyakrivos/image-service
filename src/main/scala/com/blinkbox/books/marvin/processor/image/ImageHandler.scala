@@ -2,6 +2,7 @@ package com.blinkbox.books.marvin.processor.image
 
 import akka.actor.ActorRef
 import com.blinkbox.books.messaging._
+import com.blinkbox.books.quartermaster.common.mapping.StorageService
 import com.blinkbox.books.schemas.ingestion.file.pending.v2.FilePending._
 import com.typesafe.scalalogging.StrictLogging
 
