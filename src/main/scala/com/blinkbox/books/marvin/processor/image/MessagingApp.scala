@@ -25,7 +25,7 @@ object MessagingApp extends App with Configuration with Loggers with StrictLoggi
 
   val msgErrorHandler = errorHandler("message-error", appConfig.error)
   val msgHandler = system.actorOf(Props(
-    new ImageHandler(storageService, msgErrorHandler, appConfig.retryInterval)),
+    new ImageHandler(appConfig.image, storageService, msgErrorHandler, appConfig.retryInterval)),
     name = "message-handler")
   val msgConsumer = consumer("message-consumer", appConfig.input, msgHandler)
 

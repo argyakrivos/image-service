@@ -11,7 +11,10 @@ import com.typesafe.config.Config
 import scala.concurrent.duration.{FiniteDuration, _}
 
 case class AppConfig(rabbitmq: RabbitMqConfig, retryInterval: FiniteDuration, actorTimeout: FiniteDuration,
-  input: QueueConfiguration, output: PublisherConfiguration, error: PublisherConfiguration, storagePath: Path)
+  input: QueueConfiguration, output: PublisherConfiguration, error: PublisherConfiguration,
+  storagePath: Path, image: ImageConfig)
+
+case class ImageConfig(maxWidth: Int, maxHeight: Int, outputFileType: String)
 
 object AppConfig {
   val prefix = "service.imageProcessor"
@@ -22,6 +25,15 @@ object AppConfig {
     QueueConfiguration(config.getConfig(s"$prefix.input")),
     PublisherConfiguration(config.getConfig(s"$prefix.output")),
     PublisherConfiguration(config.getConfig(s"$prefix.error")),
-    Paths.get(config.getString(s"$prefix.storagePath"))
+    Paths.get(config.getString(s"$prefix.storagePath")),
+    ImageConfig(config, s"$prefix.image")
+  )
+}
+
+object ImageConfig {
+  def apply(config: Config, prefix: String): ImageConfig = ImageConfig(
+    config.getInt(s"$prefix.maxWidth"),
+    config.getInt(s"$prefix.maxHeight"),
+    config.getString(s"$prefix.outputFileType")
   )
 }
