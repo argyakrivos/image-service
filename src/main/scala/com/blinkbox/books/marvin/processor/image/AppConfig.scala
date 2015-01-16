@@ -12,9 +12,9 @@ import scala.concurrent.duration.{FiniteDuration, _}
 
 case class AppConfig(rabbitmq: RabbitMqConfig, retryInterval: FiniteDuration, actorTimeout: FiniteDuration,
   input: QueueConfiguration, output: PublisherConfiguration, error: PublisherConfiguration,
-  storagePath: Path, image: ImageConfig)
+  storagePath: Path, imageOutput: ImageOutputConfig)
 
-case class ImageConfig(maxWidth: Int, maxHeight: Int, outputFileType: String)
+case class ImageOutputConfig(maxWidth: Int, maxHeight: Int, fileType: String, label: String)
 
 object AppConfig {
   val prefix = "service.imageProcessor"
@@ -26,14 +26,15 @@ object AppConfig {
     PublisherConfiguration(config.getConfig(s"$prefix.output")),
     PublisherConfiguration(config.getConfig(s"$prefix.error")),
     Paths.get(config.getString(s"$prefix.storagePath")),
-    ImageConfig(config, s"$prefix.image")
+    ImageOutputConfig(config, s"$prefix.imageOutput")
   )
 }
 
-object ImageConfig {
-  def apply(config: Config, prefix: String): ImageConfig = ImageConfig(
+object ImageOutputConfig {
+  def apply(config: Config, prefix: String): ImageOutputConfig = ImageOutputConfig(
     config.getInt(s"$prefix.maxWidth"),
     config.getInt(s"$prefix.maxHeight"),
-    config.getString(s"$prefix.outputFileType")
+    config.getString(s"$prefix.fileType"),
+    config.getString(s"$prefix.label")
   )
 }

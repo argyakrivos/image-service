@@ -14,7 +14,7 @@ import scala.annotation.tailrec
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, TimeoutException}
 
-class ImageHandler(config: ImageConfig, storageService: StorageService, errorHandler: ErrorHandler, retryInterval: FiniteDuration)
+class ImageHandler(config: ImageOutputConfig, storageService: StorageService, errorHandler: ErrorHandler, retryInterval: FiniteDuration)
   extends ReliableEventHandler(errorHandler, retryInterval) with StrictLogging {
 
   val imageProcessor = new ThreadPoolImageProcessor(2)
@@ -22,11 +22,10 @@ class ImageHandler(config: ImageConfig, storageService: StorageService, errorHan
   override protected def handleEvent(event: Event, originalSender: ActorRef): Future[Unit] = for {
     fileSource <- parseMessage(event.body)
     uri = URI.create(s"${fileSource.uri}/${fileSource.fileName}")
-    _ = println(uri)
     imageSource <- storageService.retrieve(uri)
     (normalisedSource, imageSettings) <- normaliseImage(imageSource)
-    uri <- storageService.store(normalisedSource, "cover", config.outputFileType)
-    _ <- sendMetadataMessage(imageSettings, uri)
+    newUri <- storageService.store(normalisedSource, config.label, config.fileType)
+    _ <- sendMetadataMessage(imageSettings, newUri)
   } yield ()
 
   @tailrec
@@ -46,7 +45,7 @@ class ImageHandler(config: ImageConfig, storageService: StorageService, errorHan
     val settings = ImageSettings(width = Some(config.maxWidth), height = Some(config.maxHeight), mode = Some(ScaleWithoutUpscale))
     var effectiveSettings = settings
     val callback: ImageSettings => Unit = imageSettings => effectiveSettings = imageSettings
-    imageProcessor.transform(config.outputFileType, input, output, settings, Some(callback))
+    imageProcessor.transform(config.fileType, input, output, settings, Some(callback))
     (output.toByteArray, effectiveSettings)
   }
 
