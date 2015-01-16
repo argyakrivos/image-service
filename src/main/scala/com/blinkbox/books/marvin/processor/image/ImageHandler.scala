@@ -4,7 +4,7 @@ import java.io._
 import java.net.URI
 
 import akka.actor.ActorRef
-import com.blinkbox.books.marvin.processor.image.processor.{ImageSettings, ScaleWithoutUpscale, ThreadPoolImageProcessor}
+import com.blinkbox.books.marvin.processor.image.processor.{ImageProcessor, ImageSettings, ScaleWithoutUpscale}
 import com.blinkbox.books.messaging._
 import com.blinkbox.books.quartermaster.common.mapping.StorageService
 import com.blinkbox.books.schemas.ingestion.file.pending.v2.FilePending._
@@ -14,11 +14,11 @@ import scala.annotation.tailrec
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, TimeoutException}
 
-class ImageHandler(config: ImageOutputConfig, storageService: StorageService, errorHandler: ErrorHandler, retryInterval: FiniteDuration)
+class ImageHandler(config: ImageOutputConfig, storageService: StorageService, imageProcessor: ImageProcessor,
+  errorHandler: ErrorHandler, retryInterval: FiniteDuration)
   extends ReliableEventHandler(errorHandler, retryInterval) with StrictLogging {
 
   private val AcceptedFormats = List("png", "jpg", "jpeg", "gif", "svn", "tif", "tiff", "bmp")
-  private val imageProcessor = new ThreadPoolImageProcessor(2)
 
   override protected def handleEvent(event: Event, originalSender: ActorRef): Future[Unit] = for {
     fileSource <- parseMessage(event.body)
@@ -54,7 +54,7 @@ class ImageHandler(config: ImageOutputConfig, storageService: StorageService, er
 
   private def normaliseImage(input: InputStream): Future[(Array[Byte], ImageSettings)] = Future {
     val output = new ByteArrayOutputStream()
-    val settings = ImageSettings(width = Some(config.maxWidth), height = Some(config.maxHeight), mode = Some(ScaleWithoutUpscale))
+    val settings = ImageSettings(Some(config.maxWidth), Some(config.maxHeight), Some(ScaleWithoutUpscale))
     var effectiveSettings = settings
     val callback: ImageSettings => Unit = imageSettings => effectiveSettings = imageSettings
     imageProcessor.transform(config.fileType, input, output, settings, Some(callback))

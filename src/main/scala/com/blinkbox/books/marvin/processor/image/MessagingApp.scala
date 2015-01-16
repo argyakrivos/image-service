@@ -4,6 +4,7 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.util.Timeout
 import com.blinkbox.books.config.Configuration
 import com.blinkbox.books.logging.{DiagnosticExecutionContext, Loggers}
+import com.blinkbox.books.marvin.processor.image.processor.ThreadPoolImageProcessor
 import com.blinkbox.books.messaging.{ActorErrorHandler, ErrorHandler}
 import com.blinkbox.books.quartermaster.common.mapping.StorageService
 import com.blinkbox.books.rabbitmq.RabbitMqConfirmedPublisher.PublisherConfiguration
@@ -22,10 +23,11 @@ object MessagingApp extends App with Configuration with Loggers with StrictLoggi
   val publisherConnection = RabbitMq.recoveredConnection(appConfig.rabbitmq)
 
   val storageService = new StorageService(appConfig.storagePath)
+  val imageProcessor = new ThreadPoolImageProcessor(appConfig.threads)
 
   val msgErrorHandler = errorHandler("message-error", appConfig.error)
   val msgHandler = system.actorOf(Props(
-    new ImageHandler(appConfig.imageOutput, storageService, msgErrorHandler, appConfig.retryInterval)),
+    new ImageHandler(appConfig.imageOutput, storageService, imageProcessor, msgErrorHandler, appConfig.retryInterval)),
     name = "message-handler")
   val msgConsumer = consumer("message-consumer", appConfig.input, msgHandler)
 

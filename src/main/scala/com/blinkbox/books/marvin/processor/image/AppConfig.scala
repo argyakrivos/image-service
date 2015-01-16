@@ -12,7 +12,7 @@ import scala.concurrent.duration.{FiniteDuration, _}
 
 case class AppConfig(rabbitmq: RabbitMqConfig, retryInterval: FiniteDuration, actorTimeout: FiniteDuration,
   input: QueueConfiguration, output: PublisherConfiguration, error: PublisherConfiguration,
-  storagePath: Path, imageOutput: ImageOutputConfig)
+  storagePath: Path, threads: Int, imageOutput: ImageOutputConfig)
 
 case class ImageOutputConfig(maxWidth: Int, maxHeight: Int, fileType: String, label: String)
 
@@ -26,6 +26,7 @@ object AppConfig {
     PublisherConfiguration(config.getConfig(s"$prefix.output")),
     PublisherConfiguration(config.getConfig(s"$prefix.error")),
     Paths.get(config.getString(s"$prefix.storagePath")),
+    config.getInt(s"$prefix.threads"),
     ImageOutputConfig(config, s"$prefix.imageOutput")
   )
 }
