@@ -19,13 +19,15 @@ class ImageHandler(config: ImageOutputConfig, storageService: StorageService, im
   extends ReliableEventHandler(errorHandler, retryInterval) with StrictLogging {
 
   private val AcceptedFormats = List("png", "jpg", "jpeg", "gif", "svn", "tif", "tiff", "bmp")
+  private val IsbnMatcher = """.*((?:97(?:8|9)){1}\d{10}).*""".r
 
   override protected def handleEvent(event: Event, originalSender: ActorRef): Future[Unit] = for {
     fileSource <- parseMessage(event.body)
+    isbn <- getImageIsbn(fileSource)
     uri <- getImageUri(fileSource)
-    imageSource <- storageService.retrieve(uri)
-    (normalisedSource, imageSettings) <- normaliseImage(imageSource)
-    newUri <- storageService.store(normalisedSource, config.label, config.fileType)
+    imageSource <- retrieveImage(uri)
+    (normalisedSource, imageSettings) <- normaliseImage(isbn, imageSource)
+    newUri <- storeImage(isbn, normalisedSource)
     _ <- sendMetadataMessage(imageSettings, newUri)
   } yield ()
 
@@ -36,12 +38,21 @@ class ImageHandler(config: ImageOutputConfig, storageService: StorageService, im
   private def parseMessage(message: EventBody): Future[FileSource] =
     message match {
       case Details(fileSource) =>
-       logger.info(s"Received token ${fileSource.uri}")
+       logger.info(s"Received token ${fileSource.uri}/${fileSource.fileName}")
        Future.successful(fileSource)
-      case _ => Future.failed(new IllegalArgumentException(s"Invalid file source event: ${message.contentType.toString}"))
+      case _ =>
+        Future.failed(new IllegalArgumentException(s"Invalid file source event: ${message.contentType.toString}"))
     }
 
-  private def getImageUri(fileSource: FileSource): Future[URI] = {
+  private def getImageIsbn(fileSource: FileSource): Future[String] =
+    fileSource.fileName.split("/").reverse.toList match {
+      case IsbnMatcher(isbn) :: _ =>
+        Future.successful(isbn)
+      case _ =>
+        Future.failed(new IllegalArgumentException(s"Could not find ISBN in file name: ${fileSource.fileName}"))
+    }
+
+  private def getImageUri(fileSource: FileSource): Future[URI] =
     fileSource.fileName.split("\\.").reverse.toList match {
       case ext :: _ if AcceptedFormats.contains(ext.toLowerCase) =>
         Future.successful(URI.create(s"${fileSource.uri}/${fileSource.fileName}"))
@@ -50,15 +61,26 @@ class ImageHandler(config: ImageOutputConfig, storageService: StorageService, im
       case _ =>
         Future.failed(new IllegalArgumentException(s"Could not detect extension: ${fileSource.fileName}"))
     }
+
+  private def retrieveImage(uri: URI): Future[InputStream] = {
+    log.info(s"Retrieving image: $uri")
+    storageService.retrieve(uri)
   }
 
-  private def normaliseImage(input: InputStream): Future[(Array[Byte], ImageSettings)] = Future {
+  private def normaliseImage(isbn: String, input: InputStream): Future[(Array[Byte], ImageSettings)] = Future {
+    logger.info(s"Processing image for $isbn")
     val output = new ByteArrayOutputStream()
     val settings = ImageSettings(Some(config.maxWidth), Some(config.maxHeight), Some(ScaleWithoutUpscale))
     var effectiveSettings = settings
     val callback: ImageSettings => Unit = imageSettings => effectiveSettings = imageSettings
     imageProcessor.transform(config.fileType, input, output, settings, Some(callback))
+    logger.info(s"Image processed for $isbn")
     (output.toByteArray, effectiveSettings)
+  }
+
+  private def storeImage(isbn: String, source: Array[Byte]): Future[URI] = {
+    log.info(s"Storing processed image for $isbn")
+    storageService.store(source, config.label, config.fileType)
   }
 
   private def sendMetadataMessage(settings: ImageSettings, uri: URI): Future[Unit] = Future {
