@@ -7,15 +7,18 @@ import akka.actor.ActorRef
 import com.blinkbox.books.marvin.processor.image.processor.{ImageProcessor, ImageSettings, ScaleWithoutUpscale}
 import com.blinkbox.books.messaging._
 import com.blinkbox.books.quartermaster.common.mapping.StorageService
+import com.blinkbox.books.schemas.ingestion.book.v2.Book
+import com.blinkbox.books.schemas.ingestion.book.v2.Book._
 import com.blinkbox.books.schemas.ingestion.file.pending.v2.FilePending._
 import com.typesafe.scalalogging.StrictLogging
+import org.joda.time.{DateTime, DateTimeZone}
 
 import scala.annotation.tailrec
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, TimeoutException}
 
 class ImageHandler(config: ImageOutputConfig, storageService: StorageService, imageProcessor: ImageProcessor,
-  errorHandler: ErrorHandler, retryInterval: FiniteDuration)
+  publisher: ActorRef, errorHandler: ErrorHandler, retryInterval: FiniteDuration)
   extends ReliableEventHandler(errorHandler, retryInterval) with StrictLogging {
 
   private val AcceptedFormats = List("png", "jpg", "jpeg", "gif", "svn", "tif", "tiff", "bmp")
@@ -28,7 +31,7 @@ class ImageHandler(config: ImageOutputConfig, storageService: StorageService, im
     imageSource <- retrieveImage(uri)
     (normalisedSource, imageSettings) <- normaliseImage(isbn, imageSource)
     newUri <- storeImage(isbn, normalisedSource)
-    _ <- sendMetadataMessage(imageSettings, newUri)
+    _ <- sendMetadataMessage(isbn, newUri, imageSettings, normalisedSource.length, fileSource)
   } yield ()
 
   @tailrec
@@ -83,7 +86,33 @@ class ImageHandler(config: ImageOutputConfig, storageService: StorageService, im
     storageService.store(source, config.label, config.fileType)
   }
 
-  private def sendMetadataMessage(settings: ImageSettings, uri: URI): Future[Unit] = Future {
-    ()
+  private def sendMetadataMessage(isbn: String, uri: URI, imageSettings: ImageSettings,
+    imageSize: Long, fileSource: FileSource): Future[Unit] = Future {
+    val coverMessage = Book.Cover(
+      List(
+        Classification("isbn", isbn),
+        Classification("source_username", fileSource.username)
+      ),
+      isbn,
+      Media(Some(List(
+        Image(
+          List(Classification("type", "front_cover")),
+          uri,
+          imageSettings.width.getOrElse(0),
+          imageSettings.height.getOrElse(0),
+          imageSize.toLong
+        )
+      ))),
+      Source(
+        DateTime.now(DateTimeZone.UTC),
+        fileSource.uri,
+        Option(new URI(fileSource.fileName)),
+        fileSource.role,
+        fileSource.username,
+        Option(fileSource.contentType),
+        System("marvin/cover_processor", MessagingApp.Version)
+      )
+    )
+    publisher ! Event.json(EventHeader("image-processor"), coverMessage)
   }
 }

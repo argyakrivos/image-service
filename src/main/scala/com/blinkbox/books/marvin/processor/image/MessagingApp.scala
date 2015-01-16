@@ -13,6 +13,7 @@ import com.blinkbox.books.rabbitmq.{RabbitMq, RabbitMqConfirmedPublisher, Rabbit
 import com.typesafe.scalalogging.StrictLogging
 
 object MessagingApp extends App with Configuration with Loggers with StrictLogging {
+  val Version = scala.util.Try(scala.io.Source.fromFile("VERSION").mkString.trim).getOrElse("0.0.0")
   val appConfig = AppConfig(config)
 
   implicit val system = ActorSystem("image-processor-system", config)
@@ -24,11 +25,12 @@ object MessagingApp extends App with Configuration with Loggers with StrictLoggi
 
   val storageService = new StorageService(appConfig.storagePath)
   val imageProcessor = new ThreadPoolImageProcessor(appConfig.threads)
+  val metadataPublisher = publisher("metadata-publisher", appConfig.output)
 
   val msgErrorHandler = errorHandler("message-error", appConfig.error)
   val msgHandler = system.actorOf(Props(
-    new ImageHandler(appConfig.imageOutput, storageService, imageProcessor, msgErrorHandler, appConfig.retryInterval)),
-    name = "message-handler")
+    new ImageHandler(appConfig.imageOutput, storageService, imageProcessor,
+      metadataPublisher, msgErrorHandler, appConfig.retryInterval)), name = "message-handler")
   val msgConsumer = consumer("message-consumer", appConfig.input, msgHandler)
 
   // kick-off things
