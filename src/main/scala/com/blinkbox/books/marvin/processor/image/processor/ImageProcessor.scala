@@ -108,7 +108,7 @@ class ThreadPoolImageProcessor(threadCount: Int) extends ImageProcessor with Str
     for {
       inputImage <- managed(time("reading image", Debug) { ImageIO.read(input) })
     } {
-      if (inputImage == null) throw new IOException(s"Unable to decode image of type $outputFileType")
+      if (inputImage == null) throw new IOException(s"Unable to decode input image")
 
       val originalImage = if (inputImage.getAlphaRaster == null) inputImage else nonTransparentImage(inputImage)
 

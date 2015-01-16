@@ -17,11 +17,12 @@ import scala.concurrent.{Future, TimeoutException}
 class ImageHandler(config: ImageOutputConfig, storageService: StorageService, errorHandler: ErrorHandler, retryInterval: FiniteDuration)
   extends ReliableEventHandler(errorHandler, retryInterval) with StrictLogging {
 
-  val imageProcessor = new ThreadPoolImageProcessor(2)
+  private val AcceptedFormats = List("png", "jpg", "jpeg", "gif", "svn", "tif", "tiff", "bmp")
+  private val imageProcessor = new ThreadPoolImageProcessor(2)
 
   override protected def handleEvent(event: Event, originalSender: ActorRef): Future[Unit] = for {
     fileSource <- parseMessage(event.body)
-    uri = URI.create(s"${fileSource.uri}/${fileSource.fileName}")
+    uri <- getImageUri(fileSource)
     imageSource <- storageService.retrieve(uri)
     (normalisedSource, imageSettings) <- normaliseImage(imageSource)
     newUri <- storageService.store(normalisedSource, config.label, config.fileType)
@@ -40,7 +41,18 @@ class ImageHandler(config: ImageOutputConfig, storageService: StorageService, er
       case _ => Future.failed(new IllegalArgumentException(s"Invalid file source event: ${message.contentType.toString}"))
     }
 
-  def normaliseImage(input: InputStream): Future[(Array[Byte], ImageSettings)] = Future {
+  private def getImageUri(fileSource: FileSource): Future[URI] = {
+    fileSource.fileName.split("\\.").reverse.toList match {
+      case ext :: _ if AcceptedFormats.contains(ext.toLowerCase) =>
+        Future.successful(URI.create(s"${fileSource.uri}/${fileSource.fileName}"))
+      case ext :: _ =>
+        Future.failed(new IllegalArgumentException(s"Unsupported extension: $ext"))
+      case _ =>
+        Future.failed(new IllegalArgumentException(s"Could not detect extension: ${fileSource.fileName}"))
+    }
+  }
+
+  private def normaliseImage(input: InputStream): Future[(Array[Byte], ImageSettings)] = Future {
     val output = new ByteArrayOutputStream()
     val settings = ImageSettings(width = Some(config.maxWidth), height = Some(config.maxHeight), mode = Some(ScaleWithoutUpscale))
     var effectiveSettings = settings
@@ -49,7 +61,7 @@ class ImageHandler(config: ImageOutputConfig, storageService: StorageService, er
     (output.toByteArray, effectiveSettings)
   }
 
-  def sendMetadataMessage(settings: ImageSettings, uri: URI): Future[Unit] = Future {
+  private def sendMetadataMessage(settings: ImageSettings, uri: URI): Future[Unit] = Future {
     ()
   }
 }
