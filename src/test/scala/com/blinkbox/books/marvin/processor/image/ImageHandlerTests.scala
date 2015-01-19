@@ -5,8 +5,8 @@ import java.net.URI
 
 import akka.actor.{ActorRef, ActorSystem, Props, Status}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
+import com.blinkbox.books.imageio.{ImageProcessor, ImageSettings}
 import com.blinkbox.books.json.DefaultFormats
-import com.blinkbox.books.marvin.processor.image.processor.{ImageProcessor, ImageSettings}
 import com.blinkbox.books.messaging._
 import com.blinkbox.books.quartermaster.common.mapping.StorageService
 import com.blinkbox.books.schemas.ingestion.book.v2.Book

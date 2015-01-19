@@ -3,8 +3,8 @@ package com.blinkbox.books.marvin.processor.image
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.util.Timeout
 import com.blinkbox.books.config.Configuration
+import com.blinkbox.books.imageio.ThreadPoolImageProcessor
 import com.blinkbox.books.logging.{DiagnosticExecutionContext, Loggers}
-import com.blinkbox.books.marvin.processor.image.processor.ThreadPoolImageProcessor
 import com.blinkbox.books.messaging.{ActorErrorHandler, ErrorHandler}
 import com.blinkbox.books.quartermaster.common.mapping.StorageService
 import com.blinkbox.books.rabbitmq.RabbitMqConfirmedPublisher.PublisherConfiguration
