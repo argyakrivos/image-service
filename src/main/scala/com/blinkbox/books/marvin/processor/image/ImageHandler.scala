@@ -22,7 +22,7 @@ class ImageHandler(config: ImageOutputConfig, storageService: StorageService, im
   extends ReliableEventHandler(errorHandler, retryInterval) with StrictLogging {
 
   private val AcceptedFormats = List("png", "jpg", "jpeg", "gif", "svn", "tif", "tiff", "bmp")
-  private val IsbnMatcher = """.*((?:97(?:8|9)){1}\d{10}).*""".r
+  private val IsbnMatcher = """.*((?:97(?:8|9))\d{10}).*""".r
 
   override protected def handleEvent(event: Event, originalSender: ActorRef): Future[Unit] = for {
     fileSource <- parseMessage(event.body)
