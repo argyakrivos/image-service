@@ -44,7 +44,7 @@ class ImageHandler(config: ImageOutputConfig, storageService: StorageService, im
        logger.info(s"Received token ${fileSource.uri}/${fileSource.fileName}")
        Future.successful(fileSource)
       case _ =>
-        Future.failed(new IllegalArgumentException(s"Invalid file source event: ${message.contentType.toString}"))
+        Future.failed(InvalidMessageType(message))
     }
 
   private def getImageIsbn(fileSource: FileSource): Future[String] =
@@ -52,17 +52,15 @@ class ImageHandler(config: ImageOutputConfig, storageService: StorageService, im
       case IsbnMatcher(isbn) :: _ =>
         Future.successful(isbn)
       case _ =>
-        Future.failed(new IllegalArgumentException(s"Could not find ISBN in file name: ${fileSource.fileName}"))
+        Future.failed(InvalidImageIsbn(fileSource.fileName))
     }
 
   private def getImageUri(fileSource: FileSource): Future[URI] =
     fileSource.fileName.split("\\.").reverse.toList match {
       case ext :: _ if AcceptedFormats.contains(ext.toLowerCase) =>
-        Future.successful(URI.create(s"${fileSource.uri}/${fileSource.fileName}"))
+        Future(URI.create(s"${fileSource.uri}/${fileSource.fileName}"))
       case ext :: _ =>
-        Future.failed(new IllegalArgumentException(s"Unsupported extension: $ext"))
-      case _ =>
-        Future.failed(new IllegalArgumentException(s"Could not detect extension: ${fileSource.fileName}"))
+        Future.failed(UnsupportedImageExtension(ext))
     }
 
   private def retrieveImage(uri: URI): Future[InputStream] = {
@@ -110,7 +108,7 @@ class ImageHandler(config: ImageOutputConfig, storageService: StorageService, im
         fileSource.role,
         fileSource.username,
         Option(fileSource.contentType),
-        System("marvin/cover_processor", MessagingApp.Version)
+        System("Marvin/image_processor", MessagingApp.Version)
       )
     )
     publisher ! Event.json(EventHeader("image-processor"), coverMessage)
