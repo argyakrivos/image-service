@@ -1,5 +1,13 @@
 # Change log
 
+## 0.2.1 ([#3](https://git.mobcastdev.com/Marvin/image-processor/pull/3) 2015-01-22 17:16:46)
+
+Proper use of Token/URI
+
+### Bug fix
+
+- Using directly the uri, instead of merging with fileName
+
 ## 0.2.0 ([#2](https://git.mobcastdev.com/Marvin/image-processor/pull/2) 2015-01-20 10:31:04)
 
 Initial implementation of Image Processor
