@@ -7,6 +7,3 @@ case class InvalidMessageType(message: EventBody) extends RuntimeException(
 
 case class InvalidImageIsbn(fileName: String) extends RuntimeException(
   s"Could not find ISBN in filename: $fileName")
-
-case class UnsupportedImageExtension(extension: String) extends RuntimeException(
-  s"Unsupported image extension: $extension")

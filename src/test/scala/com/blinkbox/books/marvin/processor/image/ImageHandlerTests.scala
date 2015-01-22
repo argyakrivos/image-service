@@ -71,18 +71,6 @@ class ImageHandlerTests extends TestKit(ActorSystem("test-system")) with Implici
     checkFailure[InvalidImageIsbn](event)
   }
 
-  it must "not process a message with an invalid image URI" in new TestFixture {
-    val event = imageEvent(fileName = "9780111222333@£%.jpg")
-    handler ! event
-    checkFailure[IllegalArgumentException](event)
-  }
-
-  it must "not process a message with an unsupported extension" in new TestFixture {
-    val event = imageEvent(fileName = "9780111222333.test")
-    handler ! event
-    checkFailure[UnsupportedImageExtension](event)
-  }
-
   trait TestFixture {
     val config = mock[ImageOutputConfig]
     doReturn("png").when(config).fileType
@@ -111,9 +99,9 @@ class ImageHandlerTests extends TestKit(ActorSystem("test-system")) with Implici
       new ImageHandler(config, storageService, imageProcessor, publisher.ref, errorHandler, retryInterval)))
 
     def imageEvent(
-      uri: URI = new URI("bbbmap:testfile:/mnt/storage"),
+      uri: URI = new URI("bbbmap:testfile:/mnt/storage/path/to/9780111222333.jpg"),
       username: String = "randomhouse_uk",
-      fileName: String = "path/to/9780111222333.jpg",
+      fileName: String = "uploaded/9780111222333.jpg",
       contentType: String = "image/jpeg",
       role: String = "publisher_ftp"): Event =
       Event.json(

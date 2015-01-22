@@ -21,13 +21,12 @@ class ImageHandler(config: ImageOutputConfig, storageService: StorageService, im
   publisher: ActorRef, errorHandler: ErrorHandler, retryInterval: FiniteDuration)
   extends ReliableEventHandler(errorHandler, retryInterval) with StrictLogging {
 
-  private val AcceptedFormats = List("png", "jpg", "jpeg", "gif", "svn", "tif", "tiff", "bmp")
   private val IsbnMatcher = """.*((?:97(?:8|9))\d{10}).*""".r
 
   override protected def handleEvent(event: Event, originalSender: ActorRef): Future[Unit] = for {
     fileSource <- parseMessage(event.body)
     isbn <- getImageIsbn(fileSource)
-    uri <- getImageUri(fileSource)
+    uri = fileSource.uri
     imageSource <- retrieveImage(uri)
     (normalisedSource, imageSettings) <- normaliseImage(isbn, imageSource)
     newUri <- storeImage(isbn, normalisedSource)
@@ -53,14 +52,6 @@ class ImageHandler(config: ImageOutputConfig, storageService: StorageService, im
         Future.successful(isbn)
       case _ =>
         Future.failed(InvalidImageIsbn(fileSource.fileName))
-    }
-
-  private def getImageUri(fileSource: FileSource): Future[URI] =
-    fileSource.fileName.split("\\.").reverse.toList match {
-      case ext :: _ if AcceptedFormats.contains(ext.toLowerCase) =>
-        Future(URI.create(s"${fileSource.uri}/${fileSource.fileName}"))
-      case ext :: _ =>
-        Future.failed(UnsupportedImageExtension(ext))
     }
 
   private def retrieveImage(uri: URI): Future[InputStream] = {
